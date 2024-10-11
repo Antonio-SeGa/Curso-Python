@@ -1,0 +1,28 @@
+#resultado = requests.get('https://escueladirecta-blog.blogspot.com/')
+
+#sopa = bs4.BeautifulSoup(resultado.text, 'lxml')
+
+#print(sopa.select('title')[0].getText())
+
+## Extraer Imagen
+'''
+resultado_img = requests.get('https://www.escueladirecta.com/courses/')
+sopa_img = bs4.BeautifulSoup(resultado_img.text, 'lxml')
+
+imagenes = sopa_img.select('.course-box-image')[0]['src']
+print(imagenes)
+
+imagen_curso1 = requests.get(imagenes)
+
+f = open('mi_imagen.jpg', 'wb')
+f.write(imagen_curso1.content)
+f.close()
+
+resultado = requests.get(url_base.format('1'))
+sopa = bs4.BeautifulSoup(resultado.text, 'lxml')
+
+libros = sopa.select('.product_pod')
+ejemplo = libros[0].select('.star-rating.Three')
+print(ejemplo)
+
+'''

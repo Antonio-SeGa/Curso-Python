@@ -7,6 +7,7 @@ import pyjokes
 import webbrowser
 import datetime
 import wikipedia
+import requests, unicodedata, re
 
 '''
 # Vizualizar opciones de voces instaladas en el ordenador
@@ -99,21 +100,21 @@ def pedir_dia():
                       4:'Viernes',
                       5:'Sábado',
                       6:'Domingo'}
-    dic_meses = {'01':"Enero",
-                 '02':"Febrero",
-                 '03':"Marzo",
-                 '04':"Abril",
-                 '05':"Mayo",
-                 '06':"Junio",
-                 '07':"Julio",
-                 '08':"Agosto",
-                 '09':"Septiembte",
-                 '10':"Octubre",
-                 '11':"Noviembre",
-                 '12':"Diciembre"}
+    dic_meses = {1:"Enero",
+                 2:"Febrero",
+                 3:"Marzo",
+                 4:"Abril",
+                 5:"Mayo",
+                 6:"Junio",
+                 7:"Julio",
+                 8:"Agosto",
+                 9:"Septiembte",
+                 10:"Octubre",
+                 11:"Noviembre",
+                 12:"Diciembre"}
     
     # El asistente dira que dia es 
-    hablar_asistente(f'Hoy es {dic_dia_semana[dia_semana]} {dia.day} de {dic_meses[str(mes)]} del {dia.year}')
+    hablar_asistente(f'Hoy es {dic_dia_semana[dia_semana]} {dia.day} de {dic_meses[mes]} del {dia.year}')
 
 
 # Infromar Hora
@@ -140,6 +141,11 @@ def saludo_inicial():
     # Decir saludo
     hablar_asistente(f"{momento}, Hola soy Sabina, tu asistente virtual. ¿En que puedo ayudarte el día de hoy?")
 
+# Remover acentos 
+def remover_acentos(texto):
+    # Normalizar el texto a formato Unicode y eliminar las marcas de acento
+    texto_normalizado = unicodedata.normalize('NFD', texto)
+    return ''.join(char for char in texto_normalizado if unicodedata.category(char) != 'Mn')
 
 # Funcion central del asistente 
 def solicitud():
@@ -149,7 +155,7 @@ def solicitud():
 
     # variable de corte
     comenzar = True
-    while True:
+    while comenzar:
         # Activar microfono y guardar la solicitud en string
         pedido = transformar_audio_en_texto().lower()
 
@@ -222,9 +228,27 @@ def solicitud():
             except:
                 hablar_asistente('Perdon no la he encontrado')
                 continue
+        
+        elif 'temperatura en' in pedido:
+            # remover_acentos(pedido.split('en')[-1].strip())
+            ciudad = remover_acentos(re.split(r'\ben\b | \ben la\b', pedido)[1].strip())
+            API_KEY = '05a07a8801227cd318838e8f27289957'
+            URL = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={API_KEY}&lang=es&units=metric"
+
+            respuesta = requests.get(URL)
+
+            if respuesta.status_code == 200:
+                datos = respuesta.json()
+                clima = datos['weather'][0]['description']
+                temperatura = datos['main']['temp']
+                hablar_asistente(f"El clima en {ciudad}: {clima}")
+                hablar_asistente(f"Temperatura: {round(temperatura)}°C")
+            else:
+                print("Error al obtener el clima. Verifica el nombre de la ciudad.")
 
         elif 'adiós' in pedido:
             hablar_asistente('Adiós, me ire a descansar, Cualquier cosa me avisas')
             break
 
+## Inicia el asistente virtual
 solicitud()

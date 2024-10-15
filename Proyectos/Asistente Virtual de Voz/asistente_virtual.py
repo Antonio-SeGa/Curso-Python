@@ -232,7 +232,7 @@ def solicitud():
         elif 'temperatura en' in pedido:
             # remover_acentos(pedido.split('en')[-1].strip())
             ciudad = remover_acentos(re.split(r'\ben\b | \ben la\b', pedido)[1].strip())
-            API_KEY = '05a07a8801227cd318838e8f27289957'
+            API_KEY = 'API_KEY'
             URL = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={API_KEY}&lang=es&units=metric"
 
             respuesta = requests.get(URL)

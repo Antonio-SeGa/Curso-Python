@@ -8,6 +8,7 @@ import webbrowser
 import datetime
 import wikipedia
 import requests, unicodedata, re
+import traductor
 
 '''
 # Vizualizar opciones de voces instaladas en el ordenador
@@ -141,11 +142,68 @@ def saludo_inicial():
     # Decir saludo
     hablar_asistente(f"{momento}, Hola soy Sabina, tu asistente virtual. ¿En que puedo ayudarte el día de hoy?")
 
+
+def procesar_conversion(texto):
+    # Diccionario de símbolos y monedas
+    divisas = {
+    "dólar": {"plural": "dólares", "código": "USD"},
+    "euro": {"plural": "euros", "código": "EUR"},
+    "€": {"plural": "€", "código": "EUR"},
+    "peso": {"plural": "pesos", "código": "MXN"},
+    "libra": {"plural": "libras", "código": "GBP"},
+    "yen": {"plural": "yenes", "código": "JPY"},
+    "rublo": {"plural": "rublos", "código": "RUB"},
+    "real": {"plural": "reales", "código": "BRL"},
+    "franco": {"plural": "francos", "código": "CHF"},
+    "corona": {"plural": "coronas", "código": "DKK"},
+    "króna": {"plural": "krónas", "código": "ISK"},
+    "złoty": {"plural": "złotys", "código": "PLN"},
+    "rupia": {"plural": "rupias", "código": "INR"},
+    "won": {"plural": "wones", "código": "KRW"},
+    "dólar australiano": {"plural": "dólares australianos", "código": "AUD"},
+    "dólar canadiense": {"plural": "dólares canadienses", "código": "CAD"},
+    }
+
+    palabras = texto.lower().split(' ')
+
+    # Buscar monto
+    monto = None
+    for palabra in palabras:
+        if palabra.startswith('$') or palabra.isdigit():
+            monto = palabra.replace('$', '')  # Extraer monto
+        if "un" in palabra or "una" in palabra:
+            monto = 1
+        
+        if "$" in palabra and palabras[-1] == "pesos":
+            palabras.insert(2,"dólares")
+        if "$" in palabra and palabras[-1] == "dólares":
+            palabras.insert(2,"pesos")
+        
+
+
+    # Buscar moneda de origen y destino
+    moneda_origen = None
+    moneda_destino = None
+    for palabra in palabras:
+        for divisa, info in divisas.items():
+            if palabra == divisa or palabra == info["plural"]:
+                if not moneda_origen:
+                    moneda_origen = info["código"]
+                else:
+                    moneda_destino = info["código"]
+    
+    if monto and moneda_origen and moneda_destino:
+        return monto, moneda_origen, moneda_destino
+    else:
+        return None
+
+
 # Remover acentos 
 def remover_acentos(texto):
     # Normalizar el texto a formato Unicode y eliminar las marcas de acento
     texto_normalizado = unicodedata.normalize('NFD', texto)
     return ''.join(char for char in texto_normalizado if unicodedata.category(char) != 'Mn')
+
 
 # Funcion central del asistente 
 def solicitud():
@@ -163,16 +221,20 @@ def solicitud():
             hablar_asistente('Con gusto, espera un moemento en lo que abro youtbue')
             webbrowser.open('https://www.youtube.com')
             continue
+        
         elif 'abrir navegador' in pedido:
             hablar_asistente('Claro, estoy en eso')
             webbrowser.open('https://www.google.com')
             continue
+        
         elif 'qué día es hoy' in pedido:
             pedir_dia()
             continue
+        
         elif 'hora es' in pedido:
             pedir_hora()
             continue
+        
         elif 'busca en wikipedia' in pedido:
             hablar_asistente('Buscando eso en wikipedia')
             pedido = pedido.replace('busca en wikipedia','')
@@ -194,9 +256,11 @@ def solicitud():
             hablar_asistente('Subele a esa canción')
             pywhatkit.playonyt(pedido)
             continue
+        
         elif 'chiste' in pedido:
             hablar_asistente(pyjokes.get_joke('es'))
             continue
+        
         elif 'precio de las acciones' in pedido:
             accion = pedido.split('de')[-1].strip().title()
             cartera = { 'Apple': 'AAPL',
@@ -232,19 +296,51 @@ def solicitud():
         elif 'temperatura en' in pedido:
             # remover_acentos(pedido.split('en')[-1].strip())
             ciudad = remover_acentos(re.split(r'\ben\b | \ben la\b', pedido)[1].strip())
-            API_KEY = 'API_KEY'
+            API_KEY = '###############'
             URL = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={API_KEY}&lang=es&units=metric"
 
             respuesta = requests.get(URL)
 
-            if respuesta.status_code == 200:
+            #if respuesta.status_code == 200:
+            try:
                 datos = respuesta.json()
                 clima = datos['weather'][0]['description']
                 temperatura = datos['main']['temp']
                 hablar_asistente(f"El clima en {ciudad}: {clima}")
                 hablar_asistente(f"Temperatura: {round(temperatura)}°C")
-            else:
+                continue
+            #else:
+            except:
                 print("Error al obtener el clima. Verifica el nombre de la ciudad.")
+                continue
+        
+        elif 'convertir' in pedido:
+            API_KEY = "##################"
+            try:
+                monto, moneda_origen, moneda_destino = procesar_conversion(pedido)
+                hablar_asistente(f"Convirtiendo {monto} de {moneda_origen} a {moneda_destino}")
+                URL = f"https://v6.exchangerate-api.com/v6/{API_KEY}/pair/{moneda_origen}/{moneda_destino}/{monto}"
+                respuesta = requests.get(URL)
+                datos = respuesta.json()
+                
+                if respuesta.status_code == 200:
+                    # Extraer el resultado de la conversión
+                    conversion = datos['conversion_result']
+                    hablar_asistente(f"{monto} {moneda_origen} son equivalentes a {conversion} {moneda_destino}")
+                else: 
+                    print(f"Error en la conversión: {datos['error-type']}")
+                continue
+            except:
+                print("Error al hacer la solicitud")
+                continue
+        
+        elif "traducir" in pedido or "traduce" in pedido or "translate" in pedido:            
+            patron = r'.*\btraducir\b|.*\btraduce\b|.*\btranslate\b'
+            texto_traducir = re.sub(patron,"", pedido)
+            texto_traducir = re.sub(' +', ' ', texto_traducir).strip().capitalize()
+            print(texto_traducir)
+            traductor.traducir_y_hablar(texto_traducir)
+            continue
 
         elif 'adiós' in pedido:
             hablar_asistente('Adiós, me ire a descansar, Cualquier cosa me avisas')
